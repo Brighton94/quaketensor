@@ -36,10 +36,10 @@ in the region. Features are built from today and earlier only.
 Fetch the data first (about a minute):
 
 ```bash
-uv run quakecast fetch --full --start 1985-01-01 --min-mag 2.5
+uv run quaketensor fetch --full --start 1985-01-01 --min-mag 2.5
 ```
 
-Helpers live in `quakecast.eda` and `quakecast.plots` and are tested in `tests/test_eda.py`.
+Helpers live in `quaketensor.eda` and `quaketensor.plots` and are tested in `tests/test_eda.py`.
 """)
 
 code("""
@@ -52,7 +52,7 @@ import seaborn as sns
 from scipy import stats
 from statsmodels.graphics.tsaplots import plot_acf
 
-from quakecast import catalog, eda, plots
+from quaketensor import catalog, eda, plots
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 plots.set_style()

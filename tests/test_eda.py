@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from quakecast import catalog, eda
+from quaketensor import catalog, eda
 
 
 def _gr_mags(n: int, b: float, mc: float, seed: int = 0, dm: float = 0.1) -> np.ndarray:
@@ -332,7 +332,7 @@ def test_plots_render(tmp_path):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from quakecast import plots
+    from quaketensor import plots
 
     plots.set_style()
     df = _poisson_catalog(1000, 1.0, seed=19)

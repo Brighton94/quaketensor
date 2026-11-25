@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from quakecast import etas
+from quaketensor import etas
 
 
 def _simulate(p: etas.ETASParams, t_end: float, m0: float, b: float, seed: int = 0):

@@ -2,7 +2,7 @@
 
 import json
 
-from quakecast import commit, evaluate
+from quaketensor import commit, evaluate
 
 
 def test_commit_roundtrip(tmp_path):
