@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from quakecast import catalog, commit, eda, etas, evaluate
+from quaketensor import catalog, commit, eda, etas, evaluate
 
 
 def _utc(s: str) -> datetime:
@@ -109,7 +109,7 @@ def cmd_score(args: argparse.Namespace) -> None:
 
 def main() -> None:
     """Parse arguments and dispatch to a subcommand."""
-    ap = argparse.ArgumentParser(prog="quakecast")
+    ap = argparse.ArgumentParser(prog="quaketensor")
     sub = ap.add_subparsers(required=True)
 
     f = sub.add_parser("fetch", help="download ComCat to parquet")
