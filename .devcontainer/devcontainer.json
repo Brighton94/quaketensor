@@ -1,10 +1,10 @@
 {
-  "name": "quakecast",
+  "name": "quaketensor",
   "build": {
     "dockerfile": "Dockerfile"
   },
   "remoteUser": "vscode",
-  "postCreateCommand": "uv sync --all-groups && uv run python -m ipykernel install --user --name quakecast",
+  "postCreateCommand": "uv sync --all-groups && uv run python -m ipykernel install --user --name quaketensor",
   "containerEnv": {
     "UV_PROJECT_ENVIRONMENT": "/home/vscode/.venv"
   },
