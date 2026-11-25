@@ -1,6 +1,8 @@
 FROM mcr.microsoft.com/devcontainers/python:1-3.12-bookworm
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN rm -f /etc/apt/sources.list.d/yarn.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
         libgeos-dev libproj-dev proj-data proj-bin \
     && rm -rf /var/lib/apt/lists/*
 
