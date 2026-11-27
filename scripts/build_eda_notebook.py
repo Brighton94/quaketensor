@@ -23,9 +23,9 @@ def code(text: str) -> None:
 
 
 md("""
-# 02 Exploratory data analysis of the California ComCat catalog
+# 02 Exploratory data analysis of the California ComCat earthquakes
 
-This notebook checks the catalog before any model is fitted: what each column means, how
+This notebook checks the data before any model is fitted: what each column means, how
 complete and clean it is, how the variables are distributed, and how the quantity we forecast
 behaves as a time series.
 
@@ -52,14 +52,14 @@ import seaborn as sns
 from scipy import stats
 from statsmodels.graphics.tsaplots import plot_acf
 
-from quaketensor import catalog, eda, plots
+from quaketensor import eda, events, plots
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 plots.set_style()
 pd.set_option("display.width", 140, "display.max_columns", 30, "display.precision", 3)
 
 M0 = 3.0  # magnitude threshold for the target
-df = catalog.load("../data/california_comcat_full.parquet")
+df = events.load("../data/california_comcat_full.parquet")
 """)
 
 md("## 1. Dataset overview")
@@ -74,7 +74,7 @@ print("Column names:", list(df.columns))
 md("Every column with its type, completeness, cardinality, an example and what it means:")
 
 code("""
-eda.overview(df, catalog.COLUMN_DESCRIPTIONS)
+eda.overview(df, events.COLUMN_DESCRIPTIONS)
 """)
 
 code("""
@@ -127,7 +127,7 @@ plt.tight_layout()
 
 md("""
 **Missingness is structural, not random.** The location and magnitude uncertainties
-(`mag_error`, `horizontal_error_km`, `dmin`) are mostly missing in the older catalog and
+(`mag_error`, `horizontal_error_km`, `dmin`) are mostly missing in the older records and
 largely complete in recent years, because older network processing did not report them.
 The core columns ETAS needs (`time`, `lat`, `lon`, `depth_km`, `mag`) have no missing values.
 
@@ -135,7 +135,7 @@ Implications:
 
 * Don't impute uncertainties with a column mean, as you might in a generic tabular dataset.
   A mean error for a 1987 event is not a measurement.
-* Any feature built on quality columns is really a proxy for the catalog era. If a model
+* Any feature built on quality columns is really a proxy for the recording era. If a model
   uses them, it may learn the date rather than the physics.
 """)
 
@@ -159,7 +159,7 @@ md("""
 """)
 
 code("""
-eq = catalog.earthquakes_only(df)
+eq = events.earthquakes_only(df)
 print(f"{len(df) - len(eq):,} non-earthquake events removed; {len(eq):,} earthquakes remain")
 
 by_type = eq.groupby("mag_type")["mag"].agg(["count", "mean", "median", "max"])
@@ -284,7 +284,7 @@ plots.fmd_plot(fmd, max(mc, M0), b, ax=ax, label=f"m0 = {M0}");
 md("""
 Above the threshold the cumulative counts follow a straight line with b ≈ 1.0, the value
 found in most tectonic regions: one unit of magnitude means about 10× fewer events. Below
-about M2.8 (the maximum-curvature Mc) the curve flattens because the catalog misses small
+about M2.8 (the maximum-curvature Mc) the curve flattens because the network misses small
 events. Above about M5.5 the counts sit a little above the line. With only a few dozen
 events there, that is a reminder that one b-value for a region mixing the San Andreas
 system, the Eastern California Shear Zone and the Mendocino triple junction is an
@@ -536,7 +536,7 @@ md("""
 Read each panel with the chi-square p-values in the legend in mind:
 
 * **Quarry blasts** show strong human cycles: 18:00 to 24:00 UTC (late morning to
-  afternoon Pacific time) and almost never at weekends. If they stayed in the catalog
+  afternoon Pacific time) and almost never at weekends. If they stayed in the data
   they would create a fake daily cycle, one more reason to remove them.
 * **All earthquakes** appear to show significant hourly, weekday and monthly
   "seasonality". The monthly spikes are July (Ridgecrest 2019, plus the Landers
@@ -683,7 +683,7 @@ md("""
 * The features are strongly correlated with each other (same-day `count`, `max_mag` and
   `log_moment` have ρ ≈ 0.9 to 0.99), so a linear model needs regularisation, and feature importances will be unstable.
 * Even the best feature has |ρ| ≈ 0.25. Day-to-day counts are largely unpredictable from
-  catalog features, which is why ETAS is hard to beat.
+  earthquake-history features, which is why ETAS is hard to beat.
 """)
 
 md("""
@@ -692,7 +692,7 @@ md("""
 | Check | Finding | Consequence |
 | --- | --- | --- |
 | Columns | 22 columns: event, quality and bookkeeping | Model on time, location and magnitude; quality columns only as flags |
-| Missing values | Only in quality columns, mostly the older catalog | No imputation; quality features would encode the era |
+| Missing values | Only in quality columns, mostly the older records | No imputation; quality features would encode the era |
 | Non-earthquakes | about 1.6% blasts, explosions and nuclear tests | Remove them; they create fake daily and weekly cycles |
 | Magnitude | Gutenberg-Richter, b ≈ 1.0, Mc ≈ 2.8 | Use m0 = 3.0; magnitude outliers are the signal |
 | Completeness | Drops for hours after large mainshocks | Expect undercounting and noisy scores right after big events |
