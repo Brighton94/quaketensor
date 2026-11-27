@@ -1,20 +1,20 @@
-"""Checks for the EDA helpers on small synthetic catalogs with known answers."""
+"""Checks for the EDA helpers on small synthetic event sets with known answers."""
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from quaketensor import catalog, eda
+from quaketensor import eda, events
 
 
 def _gr_mags(n: int, b: float, mc: float, seed: int = 0, dm: float = 0.1) -> np.ndarray:
-    """Gutenberg-Richter magnitudes above mc, binned like a real catalog."""
+    """Gutenberg-Richter magnitudes above mc, binned like a real events."""
     rng = np.random.default_rng(seed)
     m = (mc - dm / 2) + rng.exponential(1 / (b * np.log(10)), n)
     return eda.bin_magnitudes(m, dm)
 
 
-def _poisson_catalog(n_days: int, rate: float, seed: int = 0, box: float = 1.0) -> pd.DataFrame:
+def _poisson_events(n_days: int, rate: float, seed: int = 0, box: float = 1.0) -> pd.DataFrame:
     """Uniform-in-time events in a box of side `box` degrees, M >= 3."""
     rng = np.random.default_rng(seed)
     n = rng.poisson(rate * n_days)
@@ -109,7 +109,7 @@ def test_gk_windows_grow_with_magnitude():
 
 def test_decluster_removes_planted_aftershocks():
     # A wide box keeps most background events outside the M6 window (~53 km, ~500 days).
-    bg = _poisson_catalog(3650, 0.05, seed=5, box=10.0)
+    bg = _poisson_events(3650, 0.05, seed=5, box=10.0)
     t0 = pd.Timestamp("2005-06-01", tz="UTC")
     main = pd.DataFrame(
         {"time": [t0], "lat": [34.5], "lon": [-117.5], "depth_km": [8.0], "mag": [6.0]}
@@ -134,13 +134,13 @@ def test_decluster_removes_planted_aftershocks():
 
 
 def test_decluster_requires_sorted_times():
-    df = _poisson_catalog(100, 1.0).iloc[::-1].reset_index(drop=True)
+    df = _poisson_events(100, 1.0).iloc[::-1].reset_index(drop=True)
     with pytest.raises(ValueError):
         eda.decluster_gk(df)
 
 
 def test_interevent_cv_near_one_for_poisson():
-    s = eda.interevent_stats(_poisson_catalog(5000, 2.0, seed=7)["time"])
+    s = eda.interevent_stats(_poisson_events(5000, 2.0, seed=7)["time"])
     assert s["cv"] == pytest.approx(1.0, abs=0.05)
 
 
@@ -169,7 +169,7 @@ def test_daily_counts_fills_empty_days():
 
 
 def test_daily_features_target_is_tomorrow_and_no_leak():
-    df = _poisson_catalog(400, 1.0, seed=9)
+    df = _poisson_events(400, 1.0, seed=9)
     f = eda.daily_features(df, 3.0)
     counts = eda.daily_counts(df, 3.0)
     assert f["y_next"].iloc[:-1].tolist() == counts.iloc[1:-1].tolist()
@@ -275,7 +275,7 @@ def test_seasonal_share_matches_null_for_noise():
     assert eda.seasonal_share(eda.stl_monthly(seasonal)) > null.max()
 
 
-# Catalog -------------------------------------------------------------------
+# Events --------------------------------------------------------------------
 
 
 def test_tidy_fdsn_renames_sorts_and_dedups():
@@ -296,17 +296,17 @@ def test_tidy_fdsn_renames_sorts_and_dedups():
             "type": ["earthquake", "quarry blast", "quarry blast"],
         }
     )
-    df = catalog.tidy_fdsn(raw)
+    df = events.tidy_fdsn(raw)
     assert list(df["id"]) == ["a", "b"]
     assert {"lat", "lon", "depth_km", "mag_type"} <= set(df.columns)
     assert str(df["time"].dt.tz) == "UTC"
-    assert set(df.columns) <= set(catalog.COLUMN_DESCRIPTIONS)
-    assert list(catalog.earthquakes_only(df)["id"]) == ["b"]
+    assert set(df.columns) <= set(events.COLUMN_DESCRIPTIONS)
+    assert list(events.earthquakes_only(df)["id"]) == ["b"]
 
 
 def test_fdsn_url_has_limit_and_box():
-    url = catalog.fdsn_query_url(
-        pd.Timestamp("2020-01-01"), pd.Timestamp("2021-01-01"), catalog.CALIFORNIA, 2.5
+    url = events.fdsn_query_url(
+        pd.Timestamp("2020-01-01"), pd.Timestamp("2021-01-01"), events.CALIFORNIA, 2.5
     )
     assert "limit=20000" in url and "minmagnitude=2.5" in url and "format=csv" in url
 
@@ -314,8 +314,8 @@ def test_fdsn_url_has_limit_and_box():
 # Summary and plots ---------------------------------------------------------
 
 
-def test_summary_report_on_poisson_catalog():
-    df = _poisson_catalog(2000, 1.0, seed=18, box=10.0)
+def test_summary_report_on_poisson_events():
+    df = _poisson_events(2000, 1.0, seed=18, box=10.0)
     df["type"] = "earthquake"
     df.loc[df.index[:5], "type"] = "quarry blast"
     rep = eda.summary_report(df, 3.0)
@@ -335,7 +335,7 @@ def test_plots_render(tmp_path):
     from quaketensor import plots
 
     plots.set_style()
-    df = _poisson_catalog(1000, 1.0, seed=19)
+    df = _poisson_events(1000, 1.0, seed=19)
     fig, ax = plt.subplots(1, 3, figsize=(12, 3))
     plots.run_sequence_plot(eda.daily_counts(df, 3.0), "counts", "n", ax=ax[0])
     fmd = eda.frequency_magnitude(df["mag"].to_numpy())

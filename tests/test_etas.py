@@ -6,7 +6,7 @@ from quaketensor import etas
 
 
 def _simulate(p: etas.ETASParams, t_end: float, m0: float, b: float, seed: int = 0):
-    """Branching simulation of a temporal ETAS catalog."""
+    """Branching simulation of a temporal ETAS events."""
     rng = np.random.default_rng(seed)
     beta = b * np.log(10.0)
     n_bg = rng.poisson(p.mu * t_end)
