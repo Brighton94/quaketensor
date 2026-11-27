@@ -1,10 +1,10 @@
-"""Exploratory-analysis helpers for earthquake catalogs.
+"""Exploratory-analysis helpers for earthquake data.
 
 Three groups of tools:
 
 * tabular checks that apply to any dataset (column overview, missing values, skewness,
   outliers),
-* catalog checks from earthquake physics (magnitude of completeness, Gutenberg-Richter
+* data checks from earthquake physics (magnitude of completeness, Gutenberg-Richter
   b-value, Omori-Utsu decay, declustering, inter-event times),
 * time-series checks on daily counts, the quantity a next-day forecast predicts
   (stationarity, overdispersion, heteroskedasticity, seasonality, feature-target
@@ -124,7 +124,7 @@ def value_counts_table(s: pd.Series, top: int = 10) -> pd.DataFrame:
 
 
 def bin_magnitudes(mags: np.ndarray, dm: float = 0.1) -> np.ndarray:
-    """Round magnitudes to the catalog bin width so frequency counts are not split by noise."""
+    """Round magnitudes to the magnitude bin width so frequency counts are not split by noise."""
     return np.round(np.asarray(mags, dtype=float) / dm) * dm
 
 
@@ -204,7 +204,7 @@ def decluster_gk(df: pd.DataFrame) -> np.ndarray:
     mag = df["mag"].to_numpy(dtype=float)
     order = np.argsort(t, kind="stable")
     if not np.all(order == np.arange(len(t))):
-        raise ValueError("catalog must be sorted by time")
+        raise ValueError("events must be sorted by time")
     dist_w, time_w = gardner_knopoff_window(mag)
     background = np.ones(len(df), dtype=bool)
     for i in np.argsort(-mag, kind="stable"):
@@ -521,7 +521,7 @@ def seasonal_share_null(counts: pd.Series, n_sims: int = 50, seed: int = 0) -> n
 
 
 def summary_report(df: pd.DataFrame, m0: float = 3.0) -> dict:
-    """Headline EDA numbers for a catalog, as plain JSON-ready values.
+    """Headline EDA numbers for an earthquake table, as plain JSON-ready values.
 
     Non-earthquake events are dropped first when an event-type column is present.
     """

@@ -1,4 +1,4 @@
-"""Fetch the USGS ComCat catalog through pyCSEP and store it as a tidy table."""
+"""Fetch USGS ComCat earthquakes through pyCSEP and store it as a tidy table."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import pandas as pd
 
 @dataclass(frozen=True)
 class Region:
-    """Lat/lon bounding box for a catalog query."""
+    """Lat/lon bounding box for an earthquake query."""
 
     name: str
     min_lat: float
@@ -44,7 +44,7 @@ def fetch_comcat(
         max_longitude=region.max_lon,
         verbose=False,
     )
-    return catalog_to_frame(cat)
+    return events_to_frame(cat)
 
 
 FDSN_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query"
@@ -155,8 +155,8 @@ def earthquakes_only(df: pd.DataFrame) -> pd.DataFrame:
     return df[df["type"] == "earthquake"].reset_index(drop=True)
 
 
-def catalog_to_frame(cat) -> pd.DataFrame:
-    """Convert a pyCSEP catalog into a time-sorted DataFrame."""
+def events_to_frame(cat) -> pd.DataFrame:
+    """Convert pyCSEP earthquake data into a time-sorted DataFrame."""
     df = pd.DataFrame(
         {
             "time": pd.to_datetime(np.asarray(cat.get_epoch_times()), unit="ms", utc=True),
@@ -170,7 +170,7 @@ def catalog_to_frame(cat) -> pd.DataFrame:
 
 
 def save(df: pd.DataFrame, path: str | Path) -> Path:
-    """Write a catalog DataFrame to parquet."""
+    """Write an earthquake DataFrame to parquet."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(path, index=False)
@@ -178,7 +178,7 @@ def save(df: pd.DataFrame, path: str | Path) -> Path:
 
 
 def load(path: str | Path) -> pd.DataFrame:
-    """Read a catalog DataFrame from parquet."""
+    """Read an earthquake DataFrame from parquet."""
     return pd.read_parquet(path)
 
 

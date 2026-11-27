@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from quaketensor import catalog, commit, eda, etas, evaluate
+from quaketensor import commit, eda, etas, evaluate, events
 
 
 def _utc(s: str) -> datetime:
@@ -19,22 +19,22 @@ def _utc(s: str) -> datetime:
 
 
 def cmd_fetch(args: argparse.Namespace) -> None:
-    """Download a regional ComCat catalog to parquet."""
-    region = catalog.REGIONS[args.region]
+    """Download regional ComCat earthquakes to parquet."""
+    region = events.REGIONS[args.region]
     start, end = _utc(args.start), _utc(args.end)
     if args.full:
-        df = catalog.fetch_fdsn(start, end, region, args.min_mag)
+        df = events.fetch_fdsn(start, end, region, args.min_mag)
         default = f"data/{region.name}_comcat_full.parquet"
     else:
-        df = catalog.fetch_comcat(start, end, region, args.min_mag)
+        df = events.fetch_comcat(start, end, region, args.min_mag)
         default = f"data/{region.name}_comcat.parquet"
-    path = catalog.save(df, args.out or default)
+    path = events.save(df, args.out or default)
     print(f"{len(df)} events -> {path}")
 
 
 def cmd_eda(args: argparse.Namespace) -> None:
-    """Print headline EDA statistics for a catalog and optionally save them as JSON."""
-    report = eda.summary_report(catalog.load(args.catalog), args.m0)
+    """Print headline EDA statistics for an earthquake file and optionally save them as JSON."""
+    report = eda.summary_report(events.load(args.events), args.m0)
     text = json.dumps(report, indent=2, default=str)
     print(text)
     if args.out:
@@ -44,21 +44,21 @@ def cmd_eda(args: argparse.Namespace) -> None:
 
 def cmd_forecast(args: argparse.Namespace) -> None:
     """Fit ETAS on the training window and commit a count and probability forecast."""
-    df = catalog.load(args.catalog)
+    df = events.load(args.events)
     df = df[df["mag"] >= args.m0]
     t0 = pd.Timestamp(_utc(args.start)) if args.start else df["time"].max().ceil("D")
     train_start = t0 - pd.Timedelta(days=365.25 * args.train_years)
     hist_start = train_start - pd.Timedelta(days=365.25 * args.burn_in_years)
     df = df[(df["time"] >= hist_start) & (df["time"] < t0)]
-    times = catalog.to_days(df["time"], t0)
+    times = events.to_days(df["time"], t0)
     mags = df["mag"].to_numpy(dtype=float)
-    t_train = catalog.to_days(pd.Series([train_start]), t0)[0]
+    t_train = events.to_days(pd.Series([train_start]), t0)[0]
     params, ll = etas.fit(times, mags, t_train, 0.0, args.m0)
     b = etas.b_value(mags, args.m0)
     n_exp = etas.expected_count(params, times, mags, 0.0, float(args.days), args.m0)
     forecast = {
         "model": "temporal-ETAS-v0",
-        "catalog": Path(args.catalog).name,
+        "events_file": Path(args.events).name,
         "m0": args.m0,
         "window_start_utc": t0.isoformat(),
         "window_end_utc": (t0 + pd.Timedelta(days=args.days)).isoformat(),
@@ -84,13 +84,13 @@ def cmd_verify(args: argparse.Namespace) -> None:
 
 
 def cmd_score(args: argparse.Namespace) -> None:
-    """Score a committed forecast against a catalog that covers its window."""
+    """Score a committed forecast against earthquake data that covers its window."""
     data = json.loads(Path(args.file).read_text())
     fc = data["record"]["forecast"]
-    df = catalog.load(args.catalog)
+    df = events.load(args.events)
     lo, hi = pd.Timestamp(fc["window_start_utc"]), pd.Timestamp(fc["window_end_utc"])
     if df["time"].max() < hi:
-        raise SystemExit(f"catalog ends {df['time'].max()}, before window end {hi}")
+        raise SystemExit(f"data ends {df['time'].max()}, before window end {hi}")
     win = df[(df["time"] >= lo) & (df["time"] < hi)]
     n_obs = int((win["mag"] >= fc["m0"]).sum())
     probs, outcomes = [], []
@@ -113,7 +113,7 @@ def main() -> None:
     sub = ap.add_subparsers(required=True)
 
     f = sub.add_parser("fetch", help="download ComCat to parquet")
-    f.add_argument("--region", default="california", choices=sorted(catalog.REGIONS))
+    f.add_argument("--region", default="california", choices=sorted(events.REGIONS))
     f.add_argument("--start", default="2000-01-01")
     f.add_argument("--end", default=datetime.now(UTC).date().isoformat())
     f.add_argument("--min-mag", type=float, default=2.5)
@@ -123,14 +123,14 @@ def main() -> None:
     )
     f.set_defaults(func=cmd_fetch)
 
-    e = sub.add_parser("eda", help="summary statistics for a catalog")
-    e.add_argument("catalog")
+    e = sub.add_parser("eda", help="summary statistics for an earthquake file")
+    e.add_argument("events")
     e.add_argument("--m0", type=float, default=3.0)
     e.add_argument("--out", help="also write the report as JSON")
     e.set_defaults(func=cmd_eda)
 
     fc = sub.add_parser("forecast", help="fit ETAS and commit a forecast")
-    fc.add_argument("catalog")
+    fc.add_argument("events")
     fc.add_argument("--start", help="window start (default: day after last event)")
     fc.add_argument("--days", type=float, default=7.0)
     fc.add_argument("--m0", type=float, default=3.0)
@@ -146,7 +146,7 @@ def main() -> None:
 
     s = sub.add_parser("score", help="score a commitment once its window has closed")
     s.add_argument("file")
-    s.add_argument("catalog")
+    s.add_argument("events")
     s.set_defaults(func=cmd_score)
 
     args = ap.parse_args()
